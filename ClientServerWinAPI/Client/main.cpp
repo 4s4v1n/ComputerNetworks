@@ -9,7 +9,7 @@ auto main() -> int
 {
 	try
 	{
-		Client::instance().connectToServer("127.0.0.1", 2009);
+		Client::instance().connectToServer("127.0.0.1", 2009, IPPROTO::IPPROTO_TCP);
 	}
 	catch (const std::exception& ex)
 	{

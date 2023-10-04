@@ -9,7 +9,7 @@ auto main() -> int
 {
 	try
 	{
-		Server::instance().init(2009, Server::Protocol::TCP);
+		Server::instance().init(2009, IPPROTO::IPPROTO_TCP);
 		Server::instance().run();
 	}
 	catch (const std::exception& ex)

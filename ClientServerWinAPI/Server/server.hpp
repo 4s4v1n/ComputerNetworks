@@ -6,6 +6,7 @@
 
 #include <WinSock2.h>
 
+// синглтон
 class Server
 {
 public:
@@ -26,17 +27,17 @@ private:
 
 private:
 	static constexpr std::uint16_t availible_port_index		 { 1024 };
-	static constexpr std::uint8_t  max_availible_connections { 3 };
+	static constexpr std::uint8_t  max_availible_connections { 1 };
 	static constexpr const char*   localhost				 { "127.0.0.1" };
-	static constexpr const char*   sentenseFinish            { ".!?" };
-	static constexpr const char*   sentenseDelimiter         { "\t\n" };
+	static constexpr const char*   sentense_finish            { ".!?" };
+	static constexpr const char*   sentense_delimiter         { "\t\n" };
 
 private:
 	auto addToTextLettersCount(const std::string& text) const noexcept -> std::string;
 
 public:
 	static auto instance() -> Server&;
-	auto init(const std::uint16_t port, const Protocol& protocol) -> void;
+	auto init(const std::uint16_t port, const IPPROTO& protocol) -> void;
 	auto run() -> void;
 
 private:

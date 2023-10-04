@@ -5,6 +5,7 @@
 
 #include <WinSock2.h>
 
+// синглтон
 class Client
 {
 private:
@@ -17,15 +18,15 @@ private:
 	auto operator=(Client&&) -> Client& = delete;
 
 private:
-	static constexpr std::uint16_t availible_port_index { 1024 };
+	static constexpr std::uint16_t availible_port_index {1024};
 
 public:
 	static auto instance() -> Client&;
-	auto connectToServer(const char* server_address, const std::uint16_t port) -> void;
+	auto connectToServer(const char* server_address, const std::uint16_t port, const IPPROTO& protocol) -> void;
 
 private:
-	SOCKADDR_IN m_address {};
-	SOCKET      m_socket  {NULL};
+	SOCKADDR_IN m_address 		{};
+	SOCKET      m_server_socket {NULL};
 };
 
 #endif // SERVER_HPP
