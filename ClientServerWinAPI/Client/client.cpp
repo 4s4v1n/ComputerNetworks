@@ -40,9 +40,17 @@ auto Client::connectToServer(const char* server_address, const std::uint16_t por
 			port, availible_port_index)};
 	}
 
+	// ввод ip адреса сервера в локальной сети
+	std::string ip {};
+	std::cout << "ip: ";
+	std::cin >> ip;
+
+	// игнорирование ввода чтобы вернуть доступ в консоль
+	std::cin.ignore();
+
 	// инциализация структуры для хранения адреса
-	m_address.sin_addr.s_addr = inet_addr(server_address);
-	m_address.sin_port		  = port;
+	m_address.sin_addr.s_addr = inet_addr(ip.c_str());
+	m_address.sin_port		  = htons(port);
 	m_address.sin_family	  = AF_INET;
 	
 	// создание сокета для общения с сервером

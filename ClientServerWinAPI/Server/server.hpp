@@ -9,13 +9,6 @@
 // синглтон
 class Server
 {
-public:
-	enum class Protocol
-	{
-		TCP,
-		UDP
-	};
-
 private:
 	Server() = default;
 	~Server();
@@ -26,11 +19,10 @@ private:
 	auto operator=(Server&&) -> Server& = delete;
 
 private:
-	static constexpr std::uint16_t availible_port_index		 { 1024 };
-	static constexpr std::uint8_t  max_availible_connections { 1 };
-	static constexpr const char*   localhost				 { "127.0.0.1" };
-	static constexpr const char*   sentense_finish            { ".!?" };
-	static constexpr const char*   sentense_delimiter         { "\t\n" };
+	static constexpr std::uint16_t availible_port_index		 {1024};
+	static constexpr std::uint8_t  max_availible_connections {1};
+	static constexpr const char*   sentense_finish           {".!?"};
+	static constexpr const char*   sentense_delimiter        {"\t\n"};
 
 private:
 	auto addToTextLettersCount(const std::string& text) const noexcept -> std::string;

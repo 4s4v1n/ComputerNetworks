@@ -44,11 +44,11 @@ auto Server::init(const std::uint16_t port, const IPPROTO& protocol) -> void
 			port, availible_port_index)};
 	}
 
-	int address_length { sizeof(m_address) };
+	int address_length {sizeof(m_address)};
 
 	// инциализация структуры для хранения адреса
-	m_address.sin_addr.s_addr = inet_addr(localhost);
-	m_address.sin_port		  = port;
+	m_address.sin_addr.s_addr = INADDR_ANY;
+	m_address.sin_port		  = htons(port);
 	m_address.sin_family	  = AF_INET;
 
 	// создание сокета для прослушивания входящих запросов на соединение
@@ -61,7 +61,7 @@ auto Server::init(const std::uint16_t port, const IPPROTO& protocol) -> void
 
 auto Server::run() -> void
 {
-	int address_length { sizeof(m_address) };
+	int address_length {sizeof(m_address)};
 
 	// привязка сокета к адресу
 	if (bind(m_listen_socket, (SOCKADDR*)&m_address, address_length) == SOCKET_ERROR)
@@ -74,7 +74,18 @@ auto Server::run() -> void
 		throw std::runtime_error{std::format("cannot listen socket, wsa error {}", WSAGetLastError())};
 	}
 
-	std::cout << "server started" << std::endl;
+	char host[256]       {0};
+	char host_name[1024] {0};
+
+	// получение адреса сервера в локальной сети
+	if (!gethostname(host_name, 1024))
+	{
+		if (LPHOSTENT lp_host {gethostbyname(host_name)})
+		{
+			std::strcpy(host, inet_ntoa(*((in_addr*)lp_host->h_addr_list[0])));
+		}
+	}
+	std::cout << std::format("server started at {}:{}", host, htons(m_address.sin_port)) << std::endl;
 
 	// извлечение первой входящей попытки на подлкючение к сокету
 	m_client_socket = accept(m_listen_socket, (SOCKADDR*)&m_address, &address_length);
