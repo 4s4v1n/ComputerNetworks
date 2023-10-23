@@ -31,7 +31,7 @@ private:
 
 private:
 	auto addToTextLettersCount(const std::string& text) const noexcept -> std::string;
-	auto clientHandler(SOCKET& socket, const int id) -> void;
+	auto clientHandler(SOCKET socket, const int id) -> void;
 
 public:
 	static auto instance() -> Server&;
@@ -39,9 +39,9 @@ public:
 	auto run() -> void;
 
 private:
-	SOCKADDR_IN				 m_address		 {};
-	SOCKET					 m_listen_socket {NULL};
-	std::mutex				 m_mutex		 {};
+	SOCKADDR_IN m_address		{};
+	SOCKET		m_listen_socket {NULL};
+	std::mutex	m_mutex		    {};
 
 	std::vector<std::thread>		m_handler_threads {};
 	std::unordered_map<int, SOCKET> m_client_sockets  {};

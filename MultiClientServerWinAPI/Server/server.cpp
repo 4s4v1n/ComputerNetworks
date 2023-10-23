@@ -1,9 +1,12 @@
 ﻿#include "server.hpp"
 
+#include <csignal>
 #include <format>
 #include <iostream>
 #include <stdexcept>
 #include <thread>
+
+#include <Windows.h>
 
 namespace nstu
 {
@@ -24,7 +27,7 @@ Server::~Server()
 			closesocket(socket);
 		}
 	}
-	
+
 	if (m_listen_socket != NULL)
 	{
 		closesocket(m_listen_socket);
@@ -47,7 +50,8 @@ auto Server::init(const std::uint16_t port, const IPPROTO& protocol) -> void
 	// инциализация использования dll winsock
 	if (WSAStartup(MAKEWORD(2, 2), &ws_data) != 0)
 	{
-		throw std::runtime_error {std::format("wsa startup error {}", WSAGetLastError())};
+		throw std::runtime_error {std::format("wsa startup error {}",
+			WSAGetLastError())};
 	}
 
 	// проверка индекса порта на валидность
@@ -68,7 +72,8 @@ auto Server::init(const std::uint16_t port, const IPPROTO& protocol) -> void
 	m_listen_socket = socket(AF_INET, SOCK_STREAM, protocol);
 	if (m_listen_socket == INVALID_SOCKET)
 	{
-		throw std::runtime_error {std::format("cannot create socket, wsa error {}", WSAGetLastError())};
+		throw std::runtime_error {std::format("cannot create socket, wsa error {}",
+			WSAGetLastError())};
 	}
 }
 
@@ -79,12 +84,14 @@ auto Server::run() -> void
 	// привязка сокета к адресу
 	if (bind(m_listen_socket, (SOCKADDR*)&m_address, address_length) == SOCKET_ERROR)
 	{
-		throw std::runtime_error {std::format("cannot bind socket, wsa error {}", WSAGetLastError())};
+		throw std::runtime_error {std::format("cannot bind socket, wsa error {}", 
+			WSAGetLastError())};
 	}
 	// прослушивание {ip}:{port} сокетом, на входящие соединения (1)
 	if (listen(m_listen_socket, SOMAXCONN))
 	{
-		throw std::runtime_error {std::format("cannot listen socket, wsa error {}", WSAGetLastError())};
+		throw std::runtime_error {std::format("cannot listen socket, wsa error {}",
+			WSAGetLastError())};
 	}
 
 	char host[256]       {0};
@@ -108,15 +115,15 @@ auto Server::run() -> void
 
 		if (socket == NULL)
 		{
-			throw std::runtime_error{ std::format("cannot accept connection, wsa error {}",
-				WSAGetLastError()) };
+			throw std::runtime_error {std::format("cannot accept connection, wsa error {}",
+				WSAGetLastError())};
 		}
 
 		std::cout << std::format("client {} connected", id)  << std::endl;
 
 		m_client_sockets[id] = socket;
 		m_handler_threads.emplace_back(std::move(
-			std::thread(&Server::clientHandler, this, std::ref(socket), id++)));
+			std::thread(&Server::clientHandler, this, socket, id++)));
 	}
 }
 
@@ -139,13 +146,10 @@ auto Server::addToTextLettersCount(const std::string& text) const noexcept -> st
 }
 
 // обработчик запросов от 1го клиента
-auto Server::clientHandler(SOCKET& socket, const int id) -> void
+auto Server::clientHandler(SOCKET socket, const int id) -> void
 {
 	while (true)
 	{
-		// блокировка мьютекса до конца области видимости ф-ции
-		const std::unique_lock<std::mutex> lock {m_mutex};
-
 		// получение данных (запрос) от клиента
 		char buffer[1000]     {0};
 		auto transferredBytes {recv(socket, buffer, sizeof(buffer), NULL)};
@@ -180,6 +184,9 @@ auto Server::clientHandler(SOCKET& socket, const int id) -> void
 			std::cout << std::format("request processed from client {}", id) << std::endl;
 		}
 	}
+
+	// блокировка мьютекса до конца области видимости ф-ции
+	const std::lock_guard<std::mutex> lock{ m_mutex };
 
 	// закрытие и удаление сокета соответсвующего клиенту
 	closesocket(m_client_sockets[id]); 
