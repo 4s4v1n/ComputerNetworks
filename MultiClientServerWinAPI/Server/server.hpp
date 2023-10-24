@@ -31,7 +31,7 @@ private:
 
 private:
 	auto addToTextLettersCount(const std::string& text) const noexcept -> std::string;
-	auto clientHandler(SOCKET socket, const int id) -> void;
+	auto clientHandler(std::unordered_map<int, SOCKET>& sockets, const int id) -> void;
 
 public:
 	static auto instance() -> Server&;

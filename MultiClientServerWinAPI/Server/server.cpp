@@ -123,7 +123,7 @@ auto Server::run() -> void
 
 		m_client_sockets[id] = socket;
 		m_handler_threads.emplace_back(std::move(
-			std::thread(&Server::clientHandler, this, socket, id++)));
+			std::thread(&Server::clientHandler, this, std::ref(m_client_sockets), id++)));
 	}
 }
 
@@ -146,13 +146,13 @@ auto Server::addToTextLettersCount(const std::string& text) const noexcept -> st
 }
 
 // обработчик запросов от 1го клиента
-auto Server::clientHandler(SOCKET socket, const int id) -> void
+auto Server::clientHandler(std::unordered_map<int, SOCKET>& sockets, const int id) -> void
 {
 	while (true)
 	{
 		// получение данных (запрос) от клиента
 		char buffer[1000]     {0};
-		auto transferredBytes {recv(socket, buffer, sizeof(buffer), NULL)};
+		auto transferredBytes {recv(sockets[id], buffer, sizeof(buffer), NULL)};
 
 		if (transferredBytes == 0)
 		{
@@ -171,17 +171,24 @@ auto Server::clientHandler(SOCKET socket, const int id) -> void
 		{
 			std::cout << std::format("connection from client {} closed", id) << std::endl;
 			break;
-		}
+		} 
 
 		// обработка текста в соответсвии с вариантом
 		std::string processed {addToTextLettersCount(text)};
 
-		// отправка клиенту форматированного текста (ответа)
-		if (send(socket,
-			!processed.empty() ? processed.c_str() : "",
-			!processed.empty() ? processed.length() : 1, NULL) != SOCKET_ERROR)
+		std::cout << std::format("processed request from client {}", id) << std::endl;
+
+		// блокировка мьютекса до конца области видимости 
+		const std::lock_guard<std::mutex> lock{ m_mutex };
+		for (const auto& [id, socket] : sockets)
 		{
-			std::cout << std::format("request processed from client {}", id) << std::endl;
+			// отправка клиенту форматированного текста (ответа)
+			if (send(socket,
+				!processed.empty() ? processed.c_str() : "",
+				!processed.empty() ? processed.length() : 1, NULL) != SOCKET_ERROR)
+			{
+				std::cout << std::format("send request to client {}", id) << std::endl;
+			}
 		}
 	}
 

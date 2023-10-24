@@ -10,6 +10,8 @@ namespace nstu
 
 Client::~Client()
 {
+	m_reciving_thread.join();
+
 	// закрытия существующего сокета
 	if (m_server_socket != NULL)
 	{
@@ -59,6 +61,24 @@ auto Client::connectToServer(const char* address, const std::uint16_t port, cons
 
 	std::cout << "connected to server" << std::endl;
 
+	m_reciving_thread = std::move(std::thread{[this]()
+	{
+		while (true)
+		{
+			// получение данных от сервера (ответ)
+			char buffer[1000] 	  {0};
+			auto transferredBytes {recv(m_server_socket, buffer, sizeof(buffer), NULL)};
+
+			if (transferredBytes <= 0)
+			{
+				std::cout << "connection closed" << std::endl;
+				break;
+			}
+
+			std::cout << buffer << std::endl;
+		}
+	}});
+
 	while (true) {
 		std::string message {};
 
@@ -67,26 +87,11 @@ auto Client::connectToServer(const char* address, const std::uint16_t port, cons
 		// отправка данных серверу (запрос)
 		send(m_server_socket, message.c_str(), message.length(), NULL);
 		
-		if (message == stop_word) {
+		if (message == stop_word)
+		{
 			std::cout << "connection closed manually" << std::endl;
 			break;
 		}
-
-		// получение данных от сервера (ответ)
-		char buffer[1000] 	  {0};
-		auto transferredBytes {recv(m_server_socket, buffer, sizeof(buffer), NULL)};
-
-		if (transferredBytes == 0)
-		{
-			std::cout << "connection closed" << std::endl;
-		}
-
-		if (transferredBytes < 0)
-		{
-			throw std::runtime_error{std::format("recv runtime error, wsa error {}", WSAGetLastError())};
-		}
-
-		std::cout << buffer << std::endl;
 	}
 }
 

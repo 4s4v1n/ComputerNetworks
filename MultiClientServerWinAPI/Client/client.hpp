@@ -2,6 +2,8 @@
 #define CLIENT_HPP
 
 #include <cstdint>
+#include <mutex>
+#include <thread>
 
 #include <WinSock2.h>
 
@@ -30,6 +32,9 @@ public:
 private:
 	SOCKADDR_IN m_address 		{};
 	SOCKET      m_server_socket {NULL};
+	
+	std::mutex  m_mutex			  {};
+	std::thread m_reciving_thread {};
 };
 
 } // namespace nstu
