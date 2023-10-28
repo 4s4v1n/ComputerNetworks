@@ -20,11 +20,11 @@ Server::~Server()
 	}
 
 	// закрытия существующих сокетов
-	for (auto& [id, socket] : m_client_sockets)
+	for (auto& [id, client] : m_clients)
 	{
-		if (socket != NULL)
+		if (client.socket != NULL)
 		{
-			closesocket(socket);
+			closesocket(client.socket);
 		}
 	}
 
@@ -105,7 +105,7 @@ auto Server::run() -> void
 			std::strcpy(host, inet_ntoa(*((in_addr*)lp_host->h_addr_list[0])));
 		}
 	}
-	std::cout << std::format("server started at {}:{}", host, htons(m_address.sin_port)) << std::endl;
+	std::cout << std::format("[{}:{}] - server started", host, htons(m_address.sin_port)) << std::endl;
 
 	int id {1};
 	while(true)
@@ -119,85 +119,81 @@ auto Server::run() -> void
 				WSAGetLastError())};
 		}
 
-		std::cout << std::format("client {} connected", id)  << std::endl;
+		std::string client_address {std::format("{}:{}",
+			inet_ntoa(m_address.sin_addr), htons(m_address.sin_port))};
 
-		m_client_sockets[id] = socket;
-		m_handler_threads.emplace_back(std::move(
-			std::thread(&Server::clientHandler, this, std::ref(m_client_sockets), id++)));
-	}
-}
+		char buffer[1000]	  {0};
+		auto transferredBytes {recv(socket, buffer, sizeof(buffer), NULL)};
 
-// обработчик текста
-auto Server::addToTextLettersCount(const std::string& text) const noexcept -> std::string
-{
-	auto		start     {0};
-	auto		finish    {text.find_first_of(Server::sentense_finish, start)};
-	std::string proccesed {};
-
-	while (finish != std::string::npos)
-	{
-		proccesed += text.substr(start, finish - start) + " " + 
-			std::to_string(finish - start) + text[finish];
-		start     =  text.find_first_not_of(Server::sentense_delimiter, finish + 1);
-		finish    =  text.find_first_of(Server::sentense_finish, start);
-	}
-
-	return proccesed;
-}
-
-// обработчик запросов от 1го клиента
-auto Server::clientHandler(std::unordered_map<int, SOCKET>& sockets, const int id) -> void
-{
-	while (true)
-	{
-		// получение данных (запрос) от клиента
-		char buffer[1000]     {0};
-		auto transferredBytes {recv(sockets[id], buffer, sizeof(buffer), NULL)};
-
-		if (transferredBytes == 0)
+		if (transferredBytes <= 0)
 		{
-			std::cout << "connection closed" << std::endl;
 			break;
 		}
 
-		if (transferredBytes < 0)
+		ClientData client {socket, client_address, buffer};
+		m_clients[id] = client;
+
+		std::cout << std::format("[{}] [{}] - connected", 
+			client.name, client.address) << std::endl;
+
+		m_handler_threads.emplace_back(std::move(
+			std::thread(&Server::clientHandler, this, std::ref(m_clients), id++)));
+	}
+}
+
+// обработчик запросов от 1го клиента
+auto Server::clientHandler(std::unordered_map<int, ClientData>& clients, const int id) -> void
+{
+	while (true)
+	{
+		auto client {clients[id]};
+
+		// получение данных (запрос) от клиента
+		char buffer[1000]     {0};
+		auto transferredBytes {recv(client.socket, buffer, sizeof(buffer), NULL)};
+
+		if (transferredBytes <= 0)
 		{
-			std::cout << std::format("connection from client {} closed", id) << std::endl;
+			std::cout << std::format("[{}] [{}] - connection closed",
+				client.name, client.address) << std::endl;
 			break;
 		}
 
 		std::string text {buffer};
 		if (text == stop_word)
 		{
-			std::cout << std::format("connection from client {} closed", id) << std::endl;
+			std::cout << std::format("[{}] [{}] - connection closed",
+				client.name, client.address) << std::endl;
 			break;
 		} 
 
 		// обработка текста в соответсвии с вариантом
-		std::string processed {addToTextLettersCount(text)};
+		std::string response {buffer};
 
-		std::cout << std::format("processed request from client {}", id) << std::endl;
+		std::cout << std::format("[{}] [{}] - processed request", 
+			client.name, client.address) << std::endl;
 
 		// блокировка мьютекса до конца области видимости 
-		const std::lock_guard<std::mutex> lock{ m_mutex };
-		for (const auto& [id, socket] : sockets)
+		const std::lock_guard<std::mutex> lock {m_mutex};
+		for (const auto& [id, client] : clients)
 		{
 			// отправка клиенту форматированного текста (ответа)
-			if (send(socket,
-				!processed.empty() ? processed.c_str() : "",
-				!processed.empty() ? processed.length() : 1, NULL) != SOCKET_ERROR)
+			if (send(client.socket,
+				!response.empty() ? response.c_str() : "",
+				!response.empty() ? response.length() : 1, NULL) != SOCKET_ERROR)
 			{
-				std::cout << std::format("send request to client {}", id) << std::endl;
+				std::cout << std::format("[{}] [{}] - send request", 
+					client.name, client.address) << std::endl;
 			}
 		}
 	}
 
 	// блокировка мьютекса до конца области видимости ф-ции
-	const std::lock_guard<std::mutex> lock{ m_mutex };
+	const std::lock_guard<std::mutex> lock {m_mutex};
 
 	// закрытие и удаление сокета соответсвующего клиенту
-	closesocket(m_client_sockets[id]); 
-	m_client_sockets.erase(id);
+	closesocket(clients[id].socket); 
+	clients.erase(id);
 }
 
 } // namespace nstu

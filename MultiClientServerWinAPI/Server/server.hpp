@@ -15,6 +15,14 @@ namespace nstu
 class Server
 {
 private:
+	struct ClientData
+	{
+		SOCKET      socket	{};
+		std::string address {};
+		std::string name	{};
+	};
+
+private:
 	Server() = default;
 	~Server();
 	Server(const Server&) = delete;
@@ -26,12 +34,9 @@ private:
 private:
 	static constexpr std::uint16_t availible_port_index {1024};
 	static constexpr const char*   stop_word			{"stop"};
-	static constexpr const char*   sentense_finish      {".!?"};
-	static constexpr const char*   sentense_delimiter   {"\t\n"};
 
 private:
-	auto addToTextLettersCount(const std::string& text) const noexcept -> std::string;
-	auto clientHandler(std::unordered_map<int, SOCKET>& sockets, const int id) -> void;
+	auto clientHandler(std::unordered_map<int, ClientData>& clients, const int id) -> void;
 
 public:
 	static auto instance() -> Server&;
@@ -43,8 +48,8 @@ private:
 	SOCKET		m_listen_socket {NULL};
 	std::mutex	m_mutex		    {};
 
-	std::vector<std::thread>		m_handler_threads {};
-	std::unordered_map<int, SOCKET> m_client_sockets  {};
+	std::vector<std::thread>			m_handler_threads {};
+	std::unordered_map<int, ClientData> m_clients	      {};
 };
 
 } // namespace nstu

@@ -28,7 +28,8 @@ auto Client::instance() -> Client&
 	return local;
 }
 
-auto Client::connectToServer(const char* address, const std::uint16_t port, const IPPROTO& protocol) -> void
+auto Client::connectToServer(const std::string& name, const std::string& address,
+	const std::uint16_t port, const IPPROTO& protocol) -> void
 {
 	WSADATA ws_data {};
 
@@ -46,7 +47,7 @@ auto Client::connectToServer(const char* address, const std::uint16_t port, cons
 	}
 
 	// инциализация структуры для хранения адреса
-	m_address.sin_addr.s_addr = inet_addr(address);
+	m_address.sin_addr.s_addr = inet_addr(address.c_str());
 	m_address.sin_port		  = htons(port);
 	m_address.sin_family	  = AF_INET;
 	
@@ -58,14 +59,18 @@ auto Client::connectToServer(const char* address, const std::uint16_t port, cons
 	{
 		throw std::runtime_error{std::format("cannot connect socekt, wsa error {}", WSAGetLastError())};
 	}
-
 	std::cout << "connected to server" << std::endl;
+	
+	// отправка имение клиента
+	send(m_server_socket, name.c_str(), name.length(), NULL);
 
+	// запуск потока в котором получаем входящие сообщения
 	m_reciving_thread = std::move(std::thread{[this]()
 	{
 		while (true)
 		{
 			// получение данных от сервера (ответ)
+			// мьютекс не требуется, так как recv - thread safe
 			char buffer[1000] 	  {0};
 			auto transferredBytes {recv(m_server_socket, buffer, sizeof(buffer), NULL)};
 
@@ -74,7 +79,6 @@ auto Client::connectToServer(const char* address, const std::uint16_t port, cons
 				std::cout << "connection closed" << std::endl;
 				break;
 			}
-
 			std::cout << buffer << std::endl;
 		}
 	}});
@@ -85,6 +89,7 @@ auto Client::connectToServer(const char* address, const std::uint16_t port, cons
 		std::getline(std::cin, message);
 
 		// отправка данных серверу (запрос)
+		// мьютекс не требуется, так как send - thread safe
 		send(m_server_socket, message.c_str(), message.length(), NULL);
 		
 		if (message == stop_word)

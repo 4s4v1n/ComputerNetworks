@@ -27,7 +27,9 @@ private:
 
 public:
 	static auto instance() -> Client&;
-	auto connectToServer(const char* address, const std::uint16_t port, const IPPROTO& protocol) -> void;
+	auto connectToServer(const std::string& name, 
+		const std::string& address, const std::uint16_t port,
+		const IPPROTO& protocol) -> void;
 
 private:
 	SOCKADDR_IN m_address 		{};
